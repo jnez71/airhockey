@@ -9,4 +9,5 @@ To-Do:
 - puck velocity estimation
 - basic player AI
 - advanced player AI
+- readme documentation (for now, individual files are self-documented)
 
