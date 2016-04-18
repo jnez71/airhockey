@@ -1,7 +1,7 @@
 /*
 Program to be run on an arduino with a Dual-VNH5019 Motor Shield.
 Listens for serial packet to set motor efforts.
-Sends out serial packet with odometry from encoders.
+Sends out serial packet with angular odometry from encoders.
 */
 
 ///////////////////////////////////////////////// DEPENDENCIES
@@ -22,9 +22,10 @@ Sends out serial packet with odometry from encoders.
 // Motor driver
 DualVNH5019MotorShield md;
 
+// NOT NEEDED: do conversion outside of arduino instead
 // Encoder tics to degrees:
 // (revs/tic) * (degs/rev) = 1/2048 * 360
-#define ENC_SCALE 0.17578125
+// #define ENC_SCALE 0.17578125
 
 // Scale factor from effort% to cmd points
 #define CMD_SCALE -4
@@ -39,9 +40,9 @@ DualVNH5019MotorShield md;
 long cmd_x = 0;
 long cmd_y = 0;
 
-// Rotational odometry
-float deg_x = 0;
-float deg_y = 0;
+// Angular odometry
+long odom_x = 0;
+long odom_y = 0;
 
 // Encoder objects
 Encoder enc_x(18, 19); // MUST USE AT LEAST ONE EXTERNAL INTERRUPT
@@ -52,7 +53,7 @@ char request = '0';
 
 ///////////////////////////////////////////////// FUNCTIONS
 
-void send_float(float arg)
+void send_long(long arg)
 {
   // Get access to the float as a byte-array
   byte* data = (byte*) &arg;
@@ -95,8 +96,8 @@ void setup()
 void loop()
 {
   // Get latest encoder value
-  deg_x = enc_x.read() * ENC_SCALE;
-  deg_y = enc_y.read() * ENC_SCALE;
+  odom_x = enc_x.read();// * ENC_SCALE;
+  odom_y = enc_y.read();// * ENC_SCALE;
 
   // Read request from computer
   while(request == '0'){
@@ -105,10 +106,10 @@ void loop()
     }
   }
 
-  // Send odometry
+  // Send angular odometry
   if(request == ENC_REQUEST){
-    send_float(deg_x);
-    send_float(deg_y);
+    send_long(odom_x);
+    send_long(odom_y);
   }
 
   // Receive motor commands

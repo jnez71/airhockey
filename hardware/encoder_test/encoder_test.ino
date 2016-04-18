@@ -1,11 +1,11 @@
+// Import motordriver library to make sure there are no pin conflicts
 #include "/home/jason/Arduino/libraries/DualVNH5019MotorShield/DualVNH5019MotorShield.h"
 #include "/home/jason/Arduino/libraries/DualVNH5019MotorShield/DualVNH5019MotorShield.cpp"
+DualVNH5019MotorShield md;
 
 #define ENCODER_OPTIMIZE_INTERRUPTS // used on import
 #include "/home/jason/Arduino/libraries/Encoder/Encoder.h" // MODIFY: remove privacy on constructor
 #include "/home/jason/Arduino/libraries/Encoder/Encoder.cpp"
-
-DualVNH5019MotorShield md;
 
 Encoder knobLeft(18, 19); // MUST USE AT LEAST ONE EXTERNAL INTERRUPT
 Encoder knobRight(20, 21); // MUST USE AT LEAST ONE EXTERNAL INTERRUPT
