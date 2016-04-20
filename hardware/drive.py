@@ -16,7 +16,7 @@ import struct
 
 class Drive():
 
-	def __init__(self, port='/dev/ttyACM1', baud=9600, odom_scale=0.03556, odom_shift=[130, 105], dpoints=3):
+	def __init__(self, port, baud=9600, odom_scale=0.03556, odom_shift=[112, 149], dpoints=3):
 		"""
 		Set-up serial communication and internal variables.
 		Also takes scale (conversion from encoder tics to table mm),

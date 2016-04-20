@@ -6,15 +6,20 @@ from tracker import Tracker
 
 
 cam = cv2.VideoCapture(0)
-puck = Tracker(cam)
-# puck = Tracker(cam, Hinv=np.eye(3), est='obs', L=[15, 10])
+puck = Tracker(cam, Hinv=np.eye(3))
+# puck = Tracker(cam, est='avg', L=[3, 2])
 
 
+last_puck_state = [0, 0, 0, 0]
 print("Press escape to quit!")
 
 while(1):
 
 	puck_state, puck_timestamp = puck.get_target()
+
+	# if not np.allclose(np.round(puck_state, 1), np.round(last_puck_state, 1)):
+	# 	last_puck_state = puck_state
+	# 	print np.round(puck_state, 1)
 	
 	cv2.imshow('puck tracker frame', puck.frame)
 

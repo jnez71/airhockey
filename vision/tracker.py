@@ -17,7 +17,7 @@ import cv2
 
 class Tracker:
 
-    def __init__(self, cam, Hinv=None, dsf=4, hsv_min=[110, 100, 100], hsv_max=[130, 255, 255], tightness=5, est='avg', L=[3, 2]):
+    def __init__(self, cam, Hinv=None, dsf=4, hsv_min=[110, 100, 100], hsv_max=[130, 255, 255], tightness=5, est='obs', L=[15, 10]):
         """
         cam: cv2 capture object of the camera to be used.
 
@@ -35,6 +35,7 @@ class Tracker:
         est: Method for state estimation filtering. Can be 'obs'
              (zero-accel Luenberger observer with gains L) or
              'avg' (running average over L points).
+             NOTE: if computer is slow, observer can go unstable.
 
         L: [position filtering param, velocity filtering param]
            See est description.
@@ -44,7 +45,7 @@ class Tracker:
         self.set_thresholds(hsv_min, hsv_max, tightness)
         self.dsf = dsf
 
-        self.frame = None
+        self.frame = self.cam.read()[1]
         self.target_found = False
         self.last_centroid = np.zeros(2)
         
@@ -53,7 +54,7 @@ class Tracker:
         self.L = np.array(L)
 
         if est == 'avg':
-            self.state_est = self.state_est_average
+            self.state_est = self.state_est_average  # L=[3, 2] is good for this
             self.position_stack = deque([np.zeros(2)] * self.L[0])
             self.position_sum = np.zeros(2)
             self.velocity_stack = deque([np.zeros(2)] * self.L[1])
@@ -140,7 +141,7 @@ class Tracker:
         # Draw onto frame for visualization if desired
         cv2.circle(self.frame, (int(centroid[0]), int(centroid[1])), 5, (0, 0, 255), -1)
         cv2.line(self.frame, (int(centroid[0]), int(centroid[1])),
-                 (int(centroid[0] + 0.5*v[0]), int(centroid[1] + 0.5*v[1])), (0, 0, 255), 5)
+                 (int(centroid[0] - 0.25*v[0]), int(centroid[1] + 0.25*v[1])), (0, 0, 255), 5)
 
         # Return vector of full target state, coupled with a timestamp
         return (np.concatenate((p, v)), t)
@@ -199,14 +200,15 @@ class Tracker:
         self.tightness = tightness
 
 
-    def calibrate(self, fid_hue=[1, 40], xy=[5, 3], xY=[5, 16], Xy=[21, 3], XY=[21, 16]):
+    def calibrate(self, fid_hue=[3, 30], xy=[112, 149], xY=[112, 412], Xy=[587, 149], XY=[587, 412], side='left'):
         """
         Four-point planar homography calibration.
         Sets transformation from pixels to world (Hinv)
         and its inverse (H) as a tuple.
         Takes the fiducial marker color (hue limits) and
         locations of the four markers in world where lowercase
-        is min and uppercase is max.
+        is min and uppercase is max, and the side of the table
+        you are on.
         xy == bottom-left (quadrant 3)
         xY == top-left (quadrant 2)
         Xy == bottom-right (quadrant 4)
@@ -230,9 +232,10 @@ class Tracker:
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
             # Threshold to produce binary mask, default orange/red
-            calib_hsv_min=np.array([fid_hue[0], 75, 75])
+            calib_hsv_min=np.array([fid_hue[0], 150, 150])
             calib_hsv_max=np.array([fid_hue[1], 255, 255])
             mask = cv2.inRange(hsv, calib_hsv_min, calib_hsv_max)
+            cv2.imshow('Calibration Mask', mask)
 
             # Divide up mask into quadrants
             mask_tr = mask[:axis[0], axis[1]:]
@@ -257,16 +260,24 @@ class Tracker:
             x_pix[3] = x_pix[3] + axis[1]
             y_pix[3] = y_pix[3] + axis[0]
 
+            # Relation trtlblbr (quadrants) to xXyY depends on side
+            if side == 'right':
+                rel = [2, 1, 3, 0]
+            elif side == 'left':
+                rel = [0, 3, 1, 2]
+            else:
+                raise ValueError("Invalid side requested. Choose 'left' or 'right'.")
+
             # Homography hootenany, Ah = 0
             A = np.array([
-                          [xy[0], xy[1], 1,    0,     0,  0, -xy[0]*x_pix[2], -xy[1]*x_pix[2], -x_pix[2]],
-                          [    0,     0, 0, xy[0], xy[1], 1, -xy[0]*y_pix[2], -xy[1]*y_pix[2], -y_pix[2]],
-                          [xY[0], xY[1], 1,    0,     0,  0, -xY[0]*x_pix[1], -xY[1]*x_pix[1], -x_pix[1]],
-                          [    0,     0, 0, xY[0], xY[1], 1, -xY[0]*y_pix[1], -xY[1]*y_pix[1], -y_pix[1]],
-                          [Xy[0], Xy[1], 1,    0,     0,  0, -Xy[0]*x_pix[3], -Xy[1]*x_pix[3], -x_pix[3]],
-                          [    0,     0, 0, Xy[0], Xy[1], 1, -Xy[0]*y_pix[3], -Xy[1]*y_pix[3], -y_pix[3]],
-                          [XY[0], XY[1], 1,    0,     0,  0, -XY[0]*x_pix[0], -XY[1]*x_pix[0], -x_pix[0]],
-                          [    0,     0, 0, XY[0], XY[1], 1, -XY[0]*y_pix[0], -XY[1]*y_pix[0], -y_pix[0]]
+                          [xy[0], xy[1], 1,    0,     0,  0, -xy[0]*x_pix[rel[0]], -xy[1]*x_pix[rel[0]], -x_pix[rel[0]]],
+                          [    0,     0, 0, xy[0], xy[1], 1, -xy[0]*y_pix[rel[0]], -xy[1]*y_pix[rel[0]], -y_pix[rel[0]]],
+                          [xY[0], xY[1], 1,    0,     0,  0, -xY[0]*x_pix[rel[1]], -xY[1]*x_pix[rel[1]], -x_pix[rel[1]]],
+                          [    0,     0, 0, xY[0], xY[1], 1, -xY[0]*y_pix[rel[1]], -xY[1]*y_pix[rel[1]], -y_pix[rel[1]]],
+                          [Xy[0], Xy[1], 1,    0,     0,  0, -Xy[0]*x_pix[rel[2]], -Xy[1]*x_pix[rel[2]], -x_pix[rel[2]]],
+                          [    0,     0, 0, Xy[0], Xy[1], 1, -Xy[0]*y_pix[rel[2]], -Xy[1]*y_pix[rel[2]], -y_pix[rel[2]]],
+                          [XY[0], XY[1], 1,    0,     0,  0, -XY[0]*x_pix[rel[3]], -XY[1]*x_pix[rel[3]], -x_pix[rel[3]]],
+                          [    0,     0, 0, XY[0], XY[1], 1, -XY[0]*y_pix[rel[3]], -XY[1]*y_pix[rel[3]], -y_pix[rel[3]]]
                         ])
             U, s, V = npl.svd(A.T.dot(A))
             h = U[:, -1]
@@ -286,6 +297,7 @@ class Tracker:
 
             # Get user acceptance
             choice = cv2.waitKey(delay=-1)
+            cv2.destroyWindow('Calibration Mask')
             cv2.destroyWindow('Calibration Candidate')
             if choice == ord('y'):
                 print("Hinv =")

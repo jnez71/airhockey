@@ -3,9 +3,9 @@ import numpy as np
 import time
 from drive import Drive
 
-drive = Drive()
+drive = Drive('/dev/ttyACM0')
 
-last_odom = [None, None, None, None]
+last_odom = [0, 0, 0, 0]
 ID = 1
 
 while True:
@@ -23,11 +23,11 @@ while True:
 
 	# MOTOR TEST:
 
-	# val = 30
+	# val = 15
 	# rest = 1
 
 	# print "forward"
-	# drive.set_effort([val, val])
+	# drive.set_effort([val+10, val])
 	# time.sleep(rest)
 
 	# print "rest"
@@ -35,7 +35,7 @@ while True:
 	# time.sleep(rest)
 
 	# print "reverse"
-	# drive.set_effort([-val, -val])
+	# drive.set_effort([-val-10, -val])
 	# time.sleep(rest)
 
 	# print "rest"
