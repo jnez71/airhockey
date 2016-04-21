@@ -17,7 +17,7 @@ import cv2
 
 class Tracker:
 
-    def __init__(self, cam, Hinv=None, dsf=4, hsv_min=[110, 100, 100], hsv_max=[130, 255, 255], tightness=5, est='obs', L=[15, 10]):
+    def __init__(self, cam, Hinv=None, dsf=4, hsv_min=[110, 100, 100], hsv_max=[130, 255, 255], tightness=8, est='obs', L=[15, 11]):
         """
         cam: cv2 capture object of the camera to be used.
 
@@ -89,7 +89,7 @@ class Tracker:
 
         # Threshold to produce binary mask
         mask = cv2.inRange(hsv, self.hsv_min, self.hsv_max)
-        # cv2.imshow('pre mask', mask) # FOR DEBUG
+        cv2.imshow('pre mask', mask) # FOR DEBUG
 
         # Compute preliminary centroid as centroid of whole image
         M = cv2.moments(mask)
@@ -112,7 +112,7 @@ class Tracker:
                     if dist > radius:
                         # Revoke trueness
                         mask[y, x] = 0
-        # cv2.imshow('final mask', mask) # FOR DEBUG
+        cv2.imshow('final mask', mask) # FOR DEBUG
 
         # Recompute weighted mask's centroid
         M = cv2.moments(mask)
